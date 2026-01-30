@@ -14,9 +14,9 @@ function buildSystemPrompt(requestBody) {
     constraints.push(`travel tolerance: ${requestBody.travelTolerance.join(', ')} (evaluate travel times accordingly)`);
   }
   
-  // User preferences and tags
+  // User preferences
   if (requestBody.extraInfo) {
-    constraints.push(`user preferences: "${requestBody.extraInfo}" (match with tags field)`);
+    constraints.push(`user preferences: "${requestBody.extraInfo}" (consider all venue details)`);
   }
   
   // Extract filters from preferredTypes array (new structure)
@@ -80,7 +80,9 @@ function buildSystemPrompt(requestBody) {
   
   return `You are a precise itinerary scoring engine. ${constraintsText}
 
-Analyze the itinerary object and rate it from 0-100 based on the user's intent. For context, fields in the itinerary object such as distanceKm represent the distance from the previous location, and travelTimeMinutes represents the travel time from the previous location. Evaluate the entire itinerary based on all provided fields. The highlights are very important for scoring. Provide detailed reasoning for the score.
+Analyze the itinerary object and rate it from 0-100 based on the user's intent. For context, distanceKm represents the distance from the previous location, and travelTimeMinutes represents the travel time from the previous location.
+
+Each venue has: name, description, location, pricePerPerson, duration, availableTimeStart, availableTimeEnd, distanceKm, travelTimeMinutes, and amenities (wifi, washroom, wheelchair, parking, rating). The description field is important for understanding venue characteristics. Provide detailed reasoning for the score.
 
 OUTPUT FORMAT:
 Return ONLY valid JSON:
