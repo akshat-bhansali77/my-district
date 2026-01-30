@@ -82,7 +82,7 @@ function buildSystemPrompt(requestBody) {
 
 Analyze the itinerary object and rate it from 0-100 based on the user's intent. For context, distanceKm represents the distance from the previous location, and travelTimeMinutes represents the travel time from the previous location.
 
-Each venue has: name, description, location, pricePerPerson, duration, availableTimeStart, availableTimeEnd, distanceKm, travelTimeMinutes, and amenities (wifi, washroom, wheelchair, parking, rating). The description field is important for understanding venue characteristics. Provide detailed reasoning for the score.
+Each venue has: name, description, location, pricePerPerson, duration, availableTimeStart, availableTimeEnd, distanceKm, travelTimeMinutes, and amenities (wifi, washroom, wheelchair, parking, rating). Type-specific fields: dinings (type, cuisines, alcohol), movies (genre, language, format, cast), events (type, venue), activities (type, venue, intensity), plays (type, venue, intensity, cafe). Consider all venue details and type-specific fields for scoring. Provide detailed reasoning for the score.
 
 OUTPUT FORMAT:
 Return ONLY valid JSON:
