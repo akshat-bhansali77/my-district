@@ -13,9 +13,12 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   
-  // Get current day of the week
+  // Get day of the week from the selected date
   const getDayOfWeek = () => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    if (originalRequestData?.date) {
+      return days[new Date(originalRequestData.date).getDay()];
+    }
     return days[new Date().getDay()];
   };
 

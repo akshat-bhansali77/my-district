@@ -21,11 +21,11 @@ export async function GET(request) {
     url.searchParams.append('text', text);
     url.searchParams.append('size', '5'); // Limit to 5 suggestions
     url.searchParams.append('boundary.country', 'IN'); // Focus on India
-
+    const api_key = process.env.OPENROUTE_API_KEY;
     const response = await fetch(url.toString(), {
       headers: {
         'Accept': 'application/json, application/geo+json',
-        'Authorization': process.env.OPENROUTE_API_KEY,
+        'Authorization': api_key,
         'Content-Type': 'application/json'
       }
     });

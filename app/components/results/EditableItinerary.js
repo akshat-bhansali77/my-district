@@ -7,6 +7,7 @@ import { MapPin, Clock, IndianRupee, Star, Navigation, Plus, Trash2, RefreshCw, 
 import { useRouter } from 'next/navigation';
 import GoOutFilters from '../plan/GoOutFilters';
 import RouteMap from '../RouteMap';
+import { getDistance } from '@/app/lib/openroute';
 
 const GO_OUT_TYPES = [
   { id: 'dinings', name: 'Dining', icon: '🍽️' },
@@ -41,12 +42,175 @@ export default function EditableItinerary({
       setIsAdding(false);
       setSelectedType(null);
       setFilters({ filters: {} });
+      
+      // Initialize shuffled amenities for new itinerary
+      const newShuffledAmenities = {};
+      itinerary.itinerary.forEach((activity, actIndex) => {
+        const typeName = Object.keys(activity)[0];
+        const venue = activity[typeName];
+        const amenities = [];
+        if (venue.wifi) amenities.push('WiFi');
+        if (venue.washroom) amenities.push('Washroom');
+        if (venue.wheelchair) amenities.push('Wheelchair');
+        if (venue.parking) amenities.push('Parking');
+        if (venue.cafe) amenities.push('Cafe');
+        
+        // Shuffle and store
+        const shuffled = amenities.sort(() => Math.random() - 0.5).slice(0, 3);
+        newShuffledAmenities[actIndex] = shuffled;
+      });
+      setShuffledAmenities(newShuffledAmenities);
     }
   }, [itinerary]);
+
+  // Calculate distance from last activity to end location
+  useEffect(() => {
+    const calculateEndSegment = async () => {
+      if (!originalData?.endLocation || modifiedItinerary.length === 0) {
+        setEndSegment(null);
+        return;
+      }
+
+      const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZjMDM0Yjc3M2QxZDQ1MzVhMzUzMjhmMzcwYWUyZmEzIiwiaCI6Im11cm11cjY0In0=";
+      const lastActivity = modifiedItinerary[modifiedItinerary.length - 1];
+      const lastTypeName = Object.keys(lastActivity)[0];
+      const lastLocation = lastActivity[lastTypeName].location;
+
+      if (!lastLocation?.lng || !lastLocation?.lat) {
+        setEndSegment(null);
+        return;
+      }
+
+      try {
+        const mode = originalData?.transportMode || 'driving-car';
+        const result = await getDistance(
+          { lng: lastLocation.lng, lat: lastLocation.lat },
+          { lng: originalData.endLocation.lng, lat: originalData.endLocation.lat },
+          apiKey,
+          mode
+        );
+
+        if (result.success) {
+          setEndSegment({
+            distanceKm: parseFloat(result.distanceKm),
+            travelTimeMinutes: result.durationMinutes,
+            mode: mode
+          });
+        }
+      } catch (error) {
+        console.error('Error calculating end segment:', error);
+        setEndSegment(null);
+      }
+    };
+
+    calculateEndSegment();
+  }, [modifiedItinerary, originalData]);
 
   const getTypeIcon = (type) => {
     const typeObj = GO_OUT_TYPES.find(t => t.id === type);
     return typeObj?.icon || '📍';
+  };
+
+  const getTransportIcon = (mode) => {
+    switch(mode) {
+      case 'driving-car': return Car;
+      case 'cycling-electric': return Bike;
+      case 'foot-walking': return Footprints;
+      default: return Car;
+    }
+  };
+
+  const getTransportLabel = (mode) => {
+    switch(mode) {
+      case 'driving-car': return 'Car';
+      case 'cycling-electric': return 'Bike';
+      case 'foot-walking': return 'Walking';
+      default: return 'Car';
+    }
+  };
+
+  const cycleTransportMode = (currentMode) => {
+    const modes = ['driving-car', 'cycling-electric', 'foot-walking'];
+    const currentIndex = modes.indexOf(currentMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    return modes[nextIndex];
+  };
+
+  const handleModeChange = async (activityIndex, newMode) => {
+    const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZjMDM0Yjc3M2QxZDQ1MzVhMzUzMjhmMzcwYWUyZmEzIiwiaCI6Im11cm11cjY0In0=";
+    
+    // Get previous location (start location or previous activity)
+    let prevLocation;
+    if (activityIndex === 0) {
+      prevLocation = originalData?.startLocation;
+    } else {
+      const prevActivity = modifiedItinerary[activityIndex - 1];
+      const prevTypeName = Object.keys(prevActivity)[0];
+      prevLocation = prevActivity[prevTypeName].location;
+    }
+
+    // Get current activity location
+    const currentActivity = modifiedItinerary[activityIndex];
+    const typeName = Object.keys(currentActivity)[0];
+    const currentLocation = currentActivity[typeName].location;
+
+    try {
+      // Recalculate distance and time with new mode
+      const result = await getDistance(
+        { lng: prevLocation.lng, lat: prevLocation.lat },
+        { lng: currentLocation.lng, lat: currentLocation.lat },
+        apiKey,
+        newMode
+      );
+
+      if (result.success) {
+        // Update the activity with new distance and time
+        const updatedItinerary = [...modifiedItinerary];
+        updatedItinerary[activityIndex] = {
+          [typeName]: {
+            ...updatedItinerary[activityIndex][typeName],
+            distanceKm: parseFloat(result.distanceKm),
+            travelTimeMinutes: result.durationMinutes
+          }
+        };
+        setModifiedItinerary(updatedItinerary);
+        
+        // Store the mode for this segment
+        setSegmentModes(prev => ({ ...prev, [activityIndex]: newMode }));
+      }
+    } catch (error) {
+      console.error('Error recalculating distance:', error);
+    }
+  };
+
+  const handleEndSegmentModeChange = async (newMode) => {
+    if (!originalData?.endLocation || modifiedItinerary.length === 0) {
+      return;
+    }
+
+    const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZjMDM0Yjc3M2QxZDQ1MzVhMzUzMjhmMzcwYWUyZmEzIiwiaCI6Im11cm11cjY0In0=";
+    const lastActivity = modifiedItinerary[modifiedItinerary.length - 1];
+    const lastTypeName = Object.keys(lastActivity)[0];
+    const lastLocation = lastActivity[lastTypeName].location;
+
+    try {
+      const result = await getDistance(
+        { lng: lastLocation.lng, lat: lastLocation.lat },
+        { lng: originalData.endLocation.lng, lat: originalData.endLocation.lat },
+        apiKey,
+        newMode
+      );
+
+      if (result.success) {
+        setEndSegment({
+          distanceKm: parseFloat(result.distanceKm),
+          travelTimeMinutes: result.durationMinutes,
+          mode: newMode
+        });
+      }
+    } catch (error) {
+      console.error('Error recalculating end segment:', error);
+    }
   };
 
   const handleRemove = (actIndex) => {
@@ -226,7 +390,7 @@ export default function EditableItinerary({
     const typeName = Object.keys(activity)[0];
     const venue = activity[typeName];
     return sum + (venue.distanceKm || 0);
-  }, 0);
+  }, 0) + (endSegment?.distanceKm || 0);
 
   const totalHours = modifiedItinerary.reduce((sum, activity) => {
     const typeName = Object.keys(activity)[0];
@@ -234,7 +398,13 @@ export default function EditableItinerary({
     const durationHours = (venue.duration || 0) / 60;
     const travelHours = (venue.travelTimeMinutes || 0) / 60;
     return sum + durationHours + travelHours;
-  }, 0);
+  }, 0) + ((endSegment?.travelTimeMinutes || 0) / 60);
+
+  const totalTravelMinutes = modifiedItinerary.reduce((sum, activity) => {
+    const typeName = Object.keys(activity)[0];
+    const venue = activity[typeName];
+    return sum + (venue.travelTimeMinutes || 0);
+  }, 0) + (endSegment?.travelTimeMinutes || 0);
 
   const formatTime = (hours) => {
     const h = Math.floor(hours);
@@ -285,19 +455,28 @@ export default function EditableItinerary({
       <div className="flex gap-6">
         {/* Left Column: Itinerary Timeline */}
         <div className="flex-1 space-y-3 relative">
-        {/* Continuous vertical purple line from home to last activity - Centered */}
+        {/* Continuous vertical purple line from home to last activity/end location - Centered */}
         {modifiedItinerary.length > 0 && (
           <div
             className="absolute left-1/2 transform -translate-x-1/2 w-0.5 bg-purple-500 z-0"
             style={{
               top: '48px', // Start from bottom of home icon
-              bottom: '120px' // Stop before the add/regenerate buttons section
+              bottom: endSegment ? '60px' : '120px' // Extend to end location dot or stop before add/regenerate buttons
             }}
           ></div>
         )}
 
         {/* Starting Point - Home - Centered */}
         <div className="flex flex-col items-center relative mb-6 z-10">
+          {/* Share Button - Top Left */}
+          <button
+            onClick={() => console.log('Share button clicked')}
+            className="absolute top-2 left-2 p-2 text-white hover:text-gray-300 transition-colors"
+            title="Share Itinerary"
+          >
+            <Share2 className="w-5 h-5" />
+          </button>
+          
           <div className="w-12 h-12 rounded-full bg-purple-600 border-4 border-gray-900 flex items-center justify-center mb-2">
             <Home className="w-6 h-6 text-white" />
           </div>
@@ -404,15 +583,47 @@ export default function EditableItinerary({
             {/* Only show if this activity has a venue AND no incomplete activities before it */}
             {venue.distanceKm !== undefined && venue.name && !hasIncompleteActivityBefore && (
               <div className="flex justify-center py-3 relative z-10">
-                <div className="bg-gray-900 border border-purple-500/30 rounded-lg px-3 py-1.5 flex items-center gap-2">
-                  <Car className="w-4 h-4 text-purple-400" />
-                  {venue.distanceKm !== undefined && (
-                    <span className="text-gray-300 text-xs">{venue.distanceKm} km</span>
-                  )}
-                  {venue.travelTimeMinutes !== undefined && (
-                    <span className="text-gray-300 text-xs">{venue.travelTimeMinutes} min</span>
-                  )}
-                </div>
+                <button
+                  onClick={() => {
+                    const currentMode = segmentModes[actIndex] || originalData?.transportMode || 'driving-car';
+                    const nextMode = cycleTransportMode(currentMode);
+                    handleModeChange(actIndex, nextMode);
+                  }}
+                  className="bg-gray-900 border border-purple-500/30 rounded-lg px-3 py-2 hover:bg-gray-800 transition-colors"
+                  title="Click to change transport mode"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    {/* Transport Mode Icon */}
+                    {(() => {
+                      const currentMode = segmentModes[actIndex] || originalData?.transportMode || 'driving-car';
+                      const Icon = getTransportIcon(currentMode);
+                      return <Icon className="w-4 h-4 text-purple-400" />;
+                    })()}
+                    {venue.distanceKm !== undefined && (
+                      <span className="text-gray-300 text-xs">{venue.distanceKm} km</span>
+                    )}
+                    {venue.travelTimeMinutes !== undefined && (
+                      <span className="text-gray-300 text-xs">{venue.travelTimeMinutes} min</span>
+                    )}
+                  </div>
+                  {/* Mode indicator dots */}
+                  <div className="flex items-center justify-center gap-1.5">
+                    {['driving-car', 'cycling-electric', 'foot-walking'].map((mode, idx) => {
+                      const currentMode = segmentModes[actIndex] || originalData?.transportMode || 'driving-car';
+                      const isActive = currentMode === mode;
+                      return (
+                        <div
+                          key={mode}
+                          className={`rounded-full transition-all ${
+                            isActive
+                              ? 'w-2.5 h-2.5 bg-purple-400'
+                              : 'w-2 h-2 bg-gray-600'
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+                </button>
               </div>
             )}
             
@@ -519,23 +730,11 @@ export default function EditableItinerary({
                 <div className="flex items-center justify-between gap-3 mt-auto pt-2 border-t border-gray-700">
                   {/* Amenities (True Values like WiFi, Parking, etc.) - Show 3 random */}
                   <div className="flex gap-2">
-                    {(() => {
-                      const amenities = [];
-                      if (venue.wifi) amenities.push('WiFi');
-                      if (venue.washroom) amenities.push('Washroom');
-                      if (venue.wheelchair) amenities.push('Wheelchair');
-                      if (venue.parking) amenities.push('Parking');
-                      if (venue.cafe) amenities.push('Cafe');
-                      
-                      // Shuffle array and take first 3
-                      const shuffled = amenities.sort(() => Math.random() - 0.5);
-                      
-                      return shuffled.slice(0, 3).map((amenity, idx) => (
-                        <span key={idx} className="text-xs px-2 py-1 bg-gray-700 text-gray-300 rounded-full">
-                          {amenity}
-                        </span>
-                      ));
-                    })()}
+                    {(shuffledAmenities[actIndex] || []).map((amenity, idx) => (
+                      <span key={idx} className="text-xs px-2 py-1 border border-purple-500 text-purple-400 rounded-full">
+                        {amenity}
+                      </span>
+                    ))}
                   </div>
 
                   {/* View on District Link */}
@@ -544,8 +743,8 @@ export default function EditableItinerary({
                       onClick={() => window.open(venue.district_url, '_blank')}
                       className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors font-medium whitespace-nowrap"
                     >
-                      View on District
-                      <ArrowRight className="w-3 h-3" />
+                      <span className="text-purple-400">View on District</span>
+                      <ArrowRight className="w-3 h-3 text-purple-400" />
                     </button>
                   )}
                 </div>
@@ -555,6 +754,64 @@ export default function EditableItinerary({
           </React.Fragment>
           );
         })}
+
+          {/* End Location Segment - Travel from last activity to end location */}
+          {endSegment && originalData?.endLocation && (
+            <React.Fragment>
+              {/* Travel Info to End Location - Centered */}
+              <div className="flex justify-center py-3 relative z-10">
+                <button
+                  onClick={() => {
+                    const currentMode = endSegment.mode;
+                    const nextMode = cycleTransportMode(currentMode);
+                    handleEndSegmentModeChange(nextMode);
+                  }}
+                  className="bg-gray-900 border border-purple-500/30 rounded-lg px-3 py-2 hover:bg-gray-800 transition-colors"
+                  title="Click to change transport mode"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    {(() => {
+                      const Icon = getTransportIcon(endSegment.mode);
+                      return <Icon className="w-4 h-4 text-purple-400" />;
+                    })()}
+                    <span className="text-gray-300 text-xs">{endSegment.distanceKm.toFixed(1)} km</span>
+                    <span className="text-gray-300 text-xs">{Math.round(endSegment.travelTimeMinutes)} min</span>
+                  </div>
+                  {/* Mode indicator dots */}
+                  <div className="flex items-center justify-center gap-1.5">
+                    {['driving-car', 'cycling-electric', 'foot-walking'].map((mode) => {
+                      const isActive = endSegment.mode === mode;
+                      return (
+                        <div
+                          key={mode}
+                          className={`rounded-full transition-all ${
+                            isActive
+                              ? 'w-2.5 h-2.5 bg-purple-400'
+                              : 'w-2 h-2 bg-gray-600'
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+                </button>
+              </div>
+
+              {/* End Location Icon - Centered - with flag */}
+              <div className="flex flex-col items-center relative mb-6 z-10">
+                <div className="w-12 h-12 rounded-full bg-purple-600 border-4 border-gray-900 flex items-center justify-center mb-2">
+                  <Flag className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-xs font-bold text-purple-400">
+                  {(() => {
+                    const endTime = (originalData?.startTime || 18) + totalHours;
+                    const hours = Math.floor(endTime);
+                    const minutes = Math.round((endTime - hours) * 60);
+                    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                  })()}
+                </span>
+              </div>
+            </React.Fragment>
+          )}
   
           {/* Add New Activity Card */}
           {isAdding && (
@@ -633,6 +890,33 @@ export default function EditableItinerary({
           // Build locations array from start location + all venues that have coordinates
           const locations = [];
           
+          // Check if start and end locations are the same
+          const isSameStartEnd = (() => {
+            if (!originalData?.startLocation || !originalData?.endLocation) return false;
+            
+            const getCoords = (loc) => {
+              if (loc.coordinates && Array.isArray(loc.coordinates)) {
+                return { lng: loc.coordinates[0], lat: loc.coordinates[1] };
+              }
+              if (loc.lng !== undefined && loc.lat !== undefined) {
+                return { lng: loc.lng, lat: loc.lat };
+              }
+              if (loc.location?.lng !== undefined && loc.location?.lat !== undefined) {
+                return { lng: loc.location.lng, lat: loc.location.lat };
+              }
+              return null;
+            };
+            
+            const startCoords = getCoords(originalData.startLocation);
+            const endCoords = getCoords(originalData.endLocation);
+            
+            if (!startCoords || !endCoords) return false;
+            
+            // Consider same if within ~10 meters (approximately 0.0001 degrees)
+            return Math.abs(startCoords.lng - endCoords.lng) < 0.0001 &&
+                   Math.abs(startCoords.lat - endCoords.lat) < 0.0001;
+          })();
+          
           // Add start location if available (handle different formats)
           if (originalData?.startLocation) {
             const startLoc = originalData.startLocation;
@@ -658,7 +942,7 @@ export default function EditableItinerary({
               locations.push({
                 lng: lng,
                 lat: lat,
-                name: "🏠 Start Location"
+                name: isSameStartEnd ? "🏠 Start + End Location" : "🏠 Start Location"
               });
             }
           }
@@ -678,12 +962,58 @@ export default function EditableItinerary({
             }
           });
 
+          // Add end location if available (handle different formats)
+          // Always add it to locations array for route calculation, even if same as start
+          if (originalData?.endLocation) {
+            const endLoc = originalData.endLocation;
+            let lng, lat;
+            
+            // Handle coordinates array format
+            if (endLoc.coordinates && Array.isArray(endLoc.coordinates)) {
+              lng = endLoc.coordinates[0];
+              lat = endLoc.coordinates[1];
+            }
+            // Handle lat/lng object format
+            else if (endLoc.lng !== undefined && endLoc.lat !== undefined) {
+              lng = endLoc.lng;
+              lat = endLoc.lat;
+            }
+            // Handle location.lat/lng format
+            else if (endLoc.location?.lng !== undefined && endLoc.location?.lat !== undefined) {
+              lng = endLoc.location.lng;
+              lat = endLoc.location.lat;
+            }
+            
+            // Only add as separate location if different from start
+            if (lng !== undefined && lat !== undefined && !isSameStartEnd) {
+              locations.push({
+                lng: lng,
+                lat: lat,
+                name: "🏁 End Location"
+              });
+            } else if (lng !== undefined && lat !== undefined && isSameStartEnd) {
+              // Add again for route calculation but it won't show as separate pin
+              locations.push({
+                lng: lng,
+                lat: lat,
+                name: "🏠 Return to Start"
+              });
+            }
+          }
+
           // Only show map if we have at least 2 locations
           if (locations.length < 2) {
             return null;
           }
 
-          const apiKey = process.env.NEXT_PUBLIC_OPENROUTE_API_KEY;
+          const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZjMDM0Yjc3M2QxZDQ1MzVhMzUzMjhmMzcwYWUyZmEzIiwiaCI6Im11cm11cjY0In0=";
+          
+          // Check if end location exists and is different from start
+          const hasEndLocation = !!originalData?.endLocation && !isSameStartEnd;
+
+          // Calculate final end time
+          const startTime = originalData.startTime;
+          const calculatedEndTime = startTime + totalHours;
 
           return (
             <div className="w-[500px] flex-shrink-0">
@@ -699,6 +1029,12 @@ export default function EditableItinerary({
                 totalTime={formatTime(totalHours)}
                 activityCount={modifiedItinerary.length}
                 numPeople={originalData?.numPeople || 1}
+                hasEndLocation={hasEndLocation}
+                transportMode={originalData?.transportMode || 'driving-car'}
+                startTime={startTime}
+                endTime={calculatedEndTime}
+                totalTravelMinutes={totalTravelMinutes}
+                date={originalData?.date}
               />
             </div>
           );

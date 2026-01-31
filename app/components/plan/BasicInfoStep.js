@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, MapPin, LocateFixed, Search, Loader2, Clock, DollarSign, Users, Sparkles, ArrowRight } from 'lucide-react';
+import { ChevronDown, ChevronUp, MapPin, LocateFixed, Search, Loader2, Clock, DollarSign, Users, Sparkles, ArrowRight, Car, Calendar } from 'lucide-react';
 
 export default function BasicInfoStep({ formData, onNext }) {
   const [localData, setLocalData] = useState(formData);
@@ -23,9 +23,27 @@ export default function BasicInfoStep({ formData, onNext }) {
   const [selectedEndLocation, setSelectedEndLocation] = useState('');
   const [loadingEndCurrentLocation, setLoadingEndCurrentLocation] = useState(false);
 
+  // Restore location labels when coming back from step 2
+  useEffect(() => {
+    if (formData.startLocationLabel) {
+      setSelectedStartLocation(formData.startLocationLabel);
+    } else if (formData.startLocation?.lat && formData.startLocation?.lng) {
+      // If we have coordinates but no label, set a generic label
+      setSelectedStartLocation('Selected Location');
+    }
+    
+    if (formData.endLocationLabel) {
+      setSelectedEndLocation(formData.endLocationLabel);
+    } else if (formData.endLocation?.lat && formData.endLocation?.lng) {
+      // If we have coordinates but no label, set a generic label
+      setSelectedEndLocation('Selected Location');
+    }
+  }, [formData.startLocationLabel, formData.endLocationLabel, formData.startLocation, formData.endLocation]);
+
   const validate = () => {
     const newErrors = {};
     
+    if (!localData.date) newErrors.date = 'Date is required';
     if (!localData.startTime) newErrors.startTime = 'Start time is required';
     if (!localData.budget) newErrors.budget = 'Budget is required';
     if (!localData.numberOfPeople) newErrors.numberOfPeople = 'Number of people is required';
@@ -108,7 +126,8 @@ export default function BasicInfoStep({ formData, onNext }) {
       startLocation: {
         lat: suggestion.lat.toString(),
         lng: suggestion.lng.toString()
-      }
+      },
+      startLocationLabel: suggestion.label
     }));
     setSelectedStartLocation(suggestion.label);
     setStartLocationQuery('');
@@ -128,7 +147,8 @@ export default function BasicInfoStep({ formData, onNext }) {
       endLocation: {
         lat: suggestion.lat.toString(),
         lng: suggestion.lng.toString()
-      }
+      },
+      endLocationLabel: suggestion.label
     }));
     setSelectedEndLocation(suggestion.label);
     setEndLocationQuery('');
@@ -150,7 +170,8 @@ export default function BasicInfoStep({ formData, onNext }) {
           startLocation: {
             lat: position.coords.latitude.toFixed(6),
             lng: position.coords.longitude.toFixed(6)
-          }
+          },
+          startLocationLabel: 'Current Location'
         }));
         setSelectedStartLocation('Current Location');
         setLoadingCurrentLocation(false);
@@ -199,7 +220,8 @@ export default function BasicInfoStep({ formData, onNext }) {
           endLocation: {
             lat: position.coords.latitude.toFixed(6),
             lng: position.coords.longitude.toFixed(6)
-          }
+          },
+          endLocationLabel: 'Current Location'
         }));
         setSelectedEndLocation('Current Location');
         setLoadingEndCurrentLocation(false);
@@ -246,6 +268,39 @@ export default function BasicInfoStep({ formData, onNext }) {
         
         {/* Mandatory Fields - Enhanced Grid Layout */}
         <div className="space-y-5">
+          {/* Date - With Icon */}
+          <div className="group">
+            <label className="flex items-center gap-2 text-sm font-semibold text-purple-200 mb-3">
+              <Calendar className="w-4 h-4 text-purple-400" />
+              Date <span className="text-red-400">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="date"
+                value={localData.date || ''}
+                onChange={(e) => setLocalData(prev => ({ ...prev, date: e.target.value }))}
+                min={new Date().toISOString().split('T')[0]}
+                className={`w-full pl-4 pr-4 py-4 bg-gray-800/50 border-2 rounded-xl
+                  focus:ring-2 focus:ring-purple-500 focus:border-purple-500
+                  text-white font-semibold text-lg placeholder-gray-500
+                  transition-all duration-200 hover:bg-gray-800/70
+                  [&::-webkit-calendar-picker-indicator]:cursor-pointer
+                  [&::-webkit-calendar-picker-indicator]:filter
+                  [&::-webkit-calendar-picker-indicator]:invert
+                  [&::-webkit-calendar-picker-indicator]:sepia
+                  [&::-webkit-calendar-picker-indicator]:saturate-[3]
+                  [&::-webkit-calendar-picker-indicator]:hue-rotate-[230deg]
+                  [&::-webkit-calendar-picker-indicator]:brightness-[0.9]
+                  ${errors.date ? 'border-red-500 bg-red-900/10' : 'border-gray-700 focus:bg-gray-800'}`}
+              />
+            </div>
+            {errors.date && (
+              <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
+                <span>⚠️</span> {errors.date}
+              </p>
+            )}
+          </div>
+
           {/* Start Time - With Icon */}
           <div className="group">
             <label className="flex items-center gap-2 text-sm font-semibold text-purple-200 mb-3">
@@ -254,16 +309,37 @@ export default function BasicInfoStep({ formData, onNext }) {
             </label>
             <div className="relative">
               <input
-                type="number"
-                min="0"
-                max="23"
-                placeholder="18 (6 PM in 24-hour format)"
-                value={localData.startTime}
-                onChange={(e) => setLocalData(prev => ({ ...prev, startTime: e.target.value }))}
+                type="time"
+                value={localData.startTimeDisplay || ''}
+                onChange={(e) => {
+                  const timeValue = e.target.value; // HH:MM format
+                  if (timeValue) {
+                    const [hours, minutes] = timeValue.split(':');
+                    const decimalTime = parseInt(hours) + parseInt(minutes) / 60;
+                    setLocalData(prev => ({
+                      ...prev,
+                      startTime: decimalTime,
+                      startTimeDisplay: timeValue
+                    }));
+                  } else {
+                    setLocalData(prev => ({
+                      ...prev,
+                      startTime: '',
+                      startTimeDisplay: ''
+                    }));
+                  }
+                }}
                 className={`w-full pl-4 pr-4 py-4 bg-gray-800/50 border-2 rounded-xl
                   focus:ring-2 focus:ring-purple-500 focus:border-purple-500
                   text-white font-semibold text-lg placeholder-gray-500
                   transition-all duration-200 hover:bg-gray-800/70
+                  [&::-webkit-calendar-picker-indicator]:cursor-pointer
+                  [&::-webkit-calendar-picker-indicator]:filter
+                  [&::-webkit-calendar-picker-indicator]:invert
+                  [&::-webkit-calendar-picker-indicator]:sepia
+                  [&::-webkit-calendar-picker-indicator]:saturate-[3]
+                  [&::-webkit-calendar-picker-indicator]:hue-rotate-[230deg]
+                  [&::-webkit-calendar-picker-indicator]:brightness-[0.9]
                   ${errors.startTime ? 'border-red-500 bg-red-900/10' : 'border-gray-700 focus:bg-gray-800'}`}
               />
             </div>
@@ -337,12 +413,12 @@ export default function BasicInfoStep({ formData, onNext }) {
             
             {/* Selected location display - Enhanced */}
             {selectedStartLocation && (
-              <div className="mb-3 p-4 bg-gradient-to-r from-green-900/30 to-emerald-900/30 border-2 border-green-600/50 rounded-xl flex items-center justify-between backdrop-blur-sm">
+              <div className="mb-3 p-4 bg-gradient-to-r from-purple-900/30 to-purple-800/30 border-2 border-purple-600/50 rounded-xl flex items-center justify-between backdrop-blur-sm">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-600/20 rounded-lg">
-                    <MapPin className="w-5 h-5 text-green-400" />
+                  <div className="p-2 bg-purple-600/20 rounded-lg">
+                    <MapPin className="w-5 h-5 text-purple-400" />
                   </div>
-                  <span className="text-sm font-medium text-green-200">{selectedStartLocation}</span>
+                  <span className="text-sm font-medium text-purple-200">{selectedStartLocation}</span>
                 </div>
                 <button
                   type="button"
@@ -350,7 +426,8 @@ export default function BasicInfoStep({ formData, onNext }) {
                     setSelectedStartLocation('');
                     setLocalData(prev => ({
                       ...prev,
-                      startLocation: { lat: '', lng: '' }
+                      startLocation: { lat: '', lng: '' },
+                      startLocationLabel: ''
                     }));
                   }}
                   className="px-3 py-1 text-xs font-medium text-red-300 hover:text-red-200 bg-red-900/30 hover:bg-red-900/50 rounded-lg transition-colors"
@@ -383,7 +460,7 @@ export default function BasicInfoStep({ formData, onNext }) {
                     <button
                       type="button"
                       onClick={handleUseCurrentLocation}
-                      className="absolute right-4 top-4 text-blue-400 hover:text-blue-300 transition-all hover:scale-110"
+                      className="absolute right-4 top-4 text-purple-400 hover:text-purple-300 transition-all hover:scale-110"
                       title="Use current location"
                     >
                       <LocateFixed className="w-5 h-5" />
@@ -443,13 +520,34 @@ export default function BasicInfoStep({ formData, onNext }) {
                   End Time (Optional)
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  max="23"
-                  placeholder="22 (10 PM in 24-hour format)"
-                  value={localData.endTime}
-                  onChange={(e) => setLocalData(prev => ({ ...prev, endTime: e.target.value }))}
-                  className="w-full pl-4 pr-4 py-4 bg-gray-800/50 border-2 border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-white font-semibold text-lg placeholder-gray-500 transition-all duration-200 hover:bg-gray-800/70 focus:bg-gray-800"
+                  type="time"
+                  value={localData.endTimeDisplay || ''}
+                  onChange={(e) => {
+                    const timeValue = e.target.value; // HH:MM format
+                    if (timeValue) {
+                      const [hours, minutes] = timeValue.split(':');
+                      const decimalTime = parseInt(hours) + parseInt(minutes) / 60;
+                      setLocalData(prev => ({
+                        ...prev,
+                        endTime: decimalTime,
+                        endTimeDisplay: timeValue
+                      }));
+                    } else {
+                      setLocalData(prev => ({
+                        ...prev,
+                        endTime: '',
+                        endTimeDisplay: ''
+                      }));
+                    }
+                  }}
+                  className="w-full pl-4 pr-4 py-4 bg-gray-800/50 border-2 border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-white font-semibold text-lg placeholder-gray-500 transition-all duration-200 hover:bg-gray-800/70 focus:bg-gray-800
+                  [&::-webkit-calendar-picker-indicator]:cursor-pointer
+                  [&::-webkit-calendar-picker-indicator]:filter
+                  [&::-webkit-calendar-picker-indicator]:invert
+                  [&::-webkit-calendar-picker-indicator]:sepia
+                  [&::-webkit-calendar-picker-indicator]:saturate-[3]
+                  [&::-webkit-calendar-picker-indicator]:hue-rotate-[230deg]
+                  [&::-webkit-calendar-picker-indicator]:brightness-[0.9]"
                 />
               </div>
 
@@ -462,12 +560,12 @@ export default function BasicInfoStep({ formData, onNext }) {
                 
                 {/* Selected location display - Enhanced */}
                 {selectedEndLocation && (
-                  <div className="mb-3 p-4 bg-gradient-to-r from-green-900/30 to-emerald-900/30 border-2 border-green-600/50 rounded-xl flex items-center justify-between backdrop-blur-sm">
+                  <div className="mb-3 p-4 bg-gradient-to-r from-purple-900/30 to-purple-800/30 border-2 border-purple-600/50 rounded-xl flex items-center justify-between backdrop-blur-sm">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-green-600/20 rounded-lg">
-                        <MapPin className="w-5 h-5 text-green-400" />
+                      <div className="p-2 bg-purple-600/20 rounded-lg">
+                        <MapPin className="w-5 h-5 text-purple-400" />
                       </div>
-                      <span className="text-sm font-medium text-green-200">{selectedEndLocation}</span>
+                      <span className="text-sm font-medium text-purple-200">{selectedEndLocation}</span>
                     </div>
                     <button
                       type="button"
@@ -475,7 +573,8 @@ export default function BasicInfoStep({ formData, onNext }) {
                         setSelectedEndLocation('');
                         setLocalData(prev => ({
                           ...prev,
-                          endLocation: { lat: '', lng: '' }
+                          endLocation: { lat: '', lng: '' },
+                          endLocationLabel: ''
                         }));
                       }}
                       className="px-3 py-1 text-xs font-medium text-red-300 hover:text-red-200 bg-red-900/30 hover:bg-red-900/50 rounded-lg transition-colors"
@@ -504,7 +603,7 @@ export default function BasicInfoStep({ formData, onNext }) {
                         <button
                           type="button"
                           onClick={handleUseEndCurrentLocation}
-                          className="absolute right-4 top-4 text-blue-400 hover:text-blue-300 transition-all hover:scale-110"
+                          className="absolute right-4 top-4 text-purple-400 hover:text-purple-300 transition-all hover:scale-110"
                           title="Use current location"
                         >
                           <LocateFixed className="w-5 h-5" />
@@ -533,6 +632,35 @@ export default function BasicInfoStep({ formData, onNext }) {
                     )}
                   </div>
                 )}
+              </div>
+
+              {/* Mode of Transport */}
+              <div className="group">
+                <label className="flex items-center gap-2 text-sm font-semibold text-purple-200 mb-3">
+                  <Car className="w-4 h-4 text-purple-400" />
+                  Mode of Transport (Optional)
+                </label>
+                <div className="flex gap-3">
+                  {[
+                    { value: 'driving-car', label: '🚗 Car' },
+                    { value: 'cycling-electric', label: '🚴 Bike' },
+                    { value: 'foot-walking', label: '🚶 Walking' }
+                  ].map((mode) => (
+                    <button
+                      key={mode.value}
+                      type="button"
+                      onClick={() => setLocalData(prev => ({ ...prev, transportMode: mode.value }))}
+                      className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all duration-200 font-semibold ${
+                        localData.transportMode === mode.value
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-500/30 scale-105'
+                          : 'bg-gray-800/50 text-gray-300 border-gray-700 hover:border-purple-500 hover:bg-gray-800/70'
+                      }`}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">Select your preferred mode of transport for route calculations</p>
               </div>
 
               {/* Extra Info */}

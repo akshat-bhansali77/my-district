@@ -7,83 +7,27 @@ import { ChevronDown, ChevronUp, Search, Loader2, MapPin, Filter, Star, Users, W
 const FILTER_OPTIONS = {
   dinings: {
     type: ['veg', 'non-veg'],
-    cuisines: ['Italian', 'Chinese', 'North Indian', 'Mexican', 'Thai', 'Japanese', 'Continental', 'French', 'Korean', 'Mediterranean']
+    cuisines: [] // Will be populated dynamically from API
   },
   events: {
-    type: [
-      "Acoustic", "Art & Craft Workshops", "Attractions", "Beverage Tastings",
-      "Bollywood Films", "Bollywood Music", "Bollywood Night", "Brunch", "Buffet",
-      "Business Conferences & Talks", "Carnivals", "Celebrations", "Classical Music",
-      "Clubbing", "Cocktails", "Comedy", "Comedy Open Mics", "Comical Plays",
-      "Community Dining", "Community Meetups", "Concerts", "Conferences & Talks",
-      "Cricket Matches", "Cricket Screenings", "DJ Nights", "Dance", "Dating",
-      "Devotional Music", "Dinner", "Dramatic Plays", "EDM Music",
-      "Education Conferences & Talks", "Entertainment & Award Shows", "Expos",
-      "Fandom Fests", "Fests & Fairs", "Fitness & Wellness Fests", "Fitness Events",
-      "Folk Music", "Food & Drinks", "Football Screenings", "Game Zones",
-      "Gourmet Experiences", "Hip Hop Music", "Holi", "ICC", "Iconic Landmarks",
-      "Indian Classical Dance", "Indie Music", "Industry Networking",
-      "Instrumental Music", "Interest Based Communities", "Interest Based Dating",
-      "Jams", "Jazz Music", "Karaoke Nights", "Kids", "Kids Festivals", "Kids Play",
-      "Literary", "Literary Open Mics", "Live Gigs", "Lunch",
-      "Marketing Conferences & Talks", "Motorsport Matches", "Movie Screenings",
-      "Music", "Music Conferences & Talks", "Music Festivals", "Music Open Mics",
-      "Nightlife", "ODI matches", "Open Air Screening", "Open Mics",
-      "Open Mics & Jams", "Parties", "Performances", "Picnics", "Play", "Poetry",
-      "Poetry Open Mics", "Pop Culture Fairs", "Pop Music", "Rave", "Roast",
-      "Rock Music", "Singles Mixers", "Social Mixers", "Speed Dating", "Sports",
-      "Standup", "Storytelling", "Storytelling Open Mics", "Sufi Music", "Sundowner",
-      "TV Screenings", "Tech Conferences & Talks", "Techno", "Tennis Matches",
-      "Theatre", "Trade Shows", "Tribute Shows", "Valentine's Day", "Workshops",
-      "World Cup", "Wrestling Matches"
-    ],
-    venue: ['indoor', 'outdoor', 'both']
+    type: [], // Will be populated dynamically from API
+    venue: [] // Will be populated dynamically from API
   },
   activities: {
-    type: [
-      "Bowling", "Acting Workshops", "Adventure", "Adventure Parks", "Aerial Tours",
-      "Arcades", "Art & Craft Workshops", "Baking", "Bike Riding",
-      "Blood on the Clocktower", "Board Games & Puzzles", "Bollywood Dance",
-      "Business Conferences & Talks", "Calligraphy", "Celebrations", "Ceramics",
-      "City Tours", "Clay Modelling", "Coffee Brewing", "Comedy",
-      "Community Meetups", "Community Runs", "Conferences & Talks", "Cooking",
-      "Cricket", "Culinary Workshops", "DIY Workshops", "Dance Workshops", "Dating",
-      "Day Trips", "Entertainment Parks", "Escape Rooms", "Esports", "Farm Outings",
-      "Fashion & Beauty Workshops", "Fests & Fairs", "Finance Workshops",
-      "Fitness Activities", "Game Zones", "Games & Quizzes", "Go Karting", "Healing",
-      "Historical Tours", "History Museums", "Home Decor", "Horse Riding",
-      "Illusion Museums", "Improv", "Interest Based Communities",
-      "Interest Based Dating", "Kids", "Kids Festivals", "Kids Play",
-      "Kids Theme Parks", "Laser Tag", "Meditation", "Mountain Treks", "Museums",
-      "Music", "Mystery Rooms", "NYE", "Nightlife", "Paintball", "Painting",
-      "Paragliding", "Parties", "Pet Activities", "Pet Playdates",
-      "Photography Workshops", "Play Areas", "Play Sports", "Pottery Workshops",
-      "Public Speaking Workshops", "Rage Rooms", "Resin Art", "Rock Climbing",
-      "Sip & Paint", "Snow Parks", "Social Mixers", "Theme Parks", "Tours",
-      "Trampoline Parks", "Travel", "Treasure Hunts", "Treks",
-      "Trivia Nights & Quizzes", "VR Rooms", "Valentine's Day", "Watercolours",
-      "Weekend Getaways", "Wellness Workshops", "Wheel Throwing", "Workshops"
-    ],
-    venue: ['indoor', 'outdoor'],
-    intensity: ['low', 'medium', 'high']
+    type: [], // Will be populated dynamically from API
+    venue: [], // Will be populated dynamically from API
+    intensity: [] // Will be populated dynamically from API
   },
   plays: {
-    type: [
-      "Badminton", "Basketball", "Box Cricket", "Cricket", "Cricket Nets",
-      "Football", "Padel", "Pickleball", "Table Tennis", "Tennis", "Turf Football"
-    ],
-    venue: ['indoor', 'outdoor'],
-    intensity: ['low', 'medium', 'high']
+    type: [], // Will be populated dynamically from API
+    venue: [], // Will be populated dynamically from API
+    intensity: [] // Will be populated dynamically from API
   },
   movies: {
-    genre: [
-      "Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Family",
-      "Fantasy", "Historical", "Horror", "Mystery", "Psychological Thriller",
-      "Romance", "Sci-Fi", "Sport", "Thriller", "War"
-    ],
+    genre: [], // Will be populated dynamically from API
     language: ['Hindi', 'English'],
-    format: ['2D', '3D', '4DX-3D', 'IMAX 2D', '4DX-2D', 'ICE 2D'],
-    cast: ['Shah Rukh Khan', 'Alia Bhatt', 'Ranbir Kapoor', 'Deepika Padukone', 'Rajkummar Rao', 'Ayushmann Khurrana', 'Vicky Kaushal', 'Katrina Kaif']
+    format: [], // Will be populated dynamically from API
+    cast: [] // Will be populated dynamically from API
   }
 };
 
@@ -96,8 +40,187 @@ export default function GoOutFilters({ type, filters, onUpdate }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [dynamicCuisines, setDynamicCuisines] = useState([]);
+  const [dynamicMovieMetadata, setDynamicMovieMetadata] = useState({
+    genres: [],
+    formats: [],
+    cast: []
+  });
+  const [dynamicEventMetadata, setDynamicEventMetadata] = useState({
+    types: [],
+    venues: []
+  });
+  const [dynamicActivityMetadata, setDynamicActivityMetadata] = useState({
+    types: [],
+    venues: [],
+    intensities: []
+  });
+  const [dynamicPlayMetadata, setDynamicPlayMetadata] = useState({
+    types: [],
+    venues: [],
+    intensities: []
+  });
 
   const options = FILTER_OPTIONS[type] || {};
+  
+  // Fetch cuisines dynamically from API when type is 'dinings'
+  useEffect(() => {
+    if (type === 'dinings') {
+      const fetchCuisines = async () => {
+        try {
+          const response = await fetch('/api/cuisines');
+          const data = await response.json();
+          if (data.success && data.cuisines) {
+            setDynamicCuisines(data.cuisines);
+          }
+        } catch (error) {
+          console.error('Error fetching cuisines:', error);
+        }
+      };
+      fetchCuisines();
+    }
+  }, [type]);
+  
+  // Fetch movie metadata dynamically from API when type is 'movies'
+  useEffect(() => {
+    if (type === 'movies') {
+      const fetchMovieMetadata = async () => {
+        try {
+          const response = await fetch('/api/movies-metadata');
+          const data = await response.json();
+          if (data.success) {
+            setDynamicMovieMetadata({
+              genres: data.genres || [],
+              formats: data.formats || [],
+              cast: data.cast || []
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching movie metadata:', error);
+        }
+      };
+      fetchMovieMetadata();
+    }
+  }, [type]);
+  
+  // Fetch event metadata dynamically from API when type is 'events'
+  useEffect(() => {
+    if (type === 'events') {
+      const fetchEventMetadata = async () => {
+        try {
+          const response = await fetch('/api/events-metadata');
+          const data = await response.json();
+          if (data.success) {
+            setDynamicEventMetadata({
+              types: data.types || [],
+              venues: data.venues || []
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching event metadata:', error);
+        }
+      };
+      fetchEventMetadata();
+    }
+  }, [type]);
+  
+  // Fetch activity metadata dynamically from API when type is 'activities'
+  useEffect(() => {
+    if (type === 'activities') {
+      const fetchActivityMetadata = async () => {
+        try {
+          const response = await fetch('/api/activities-metadata');
+          const data = await response.json();
+          if (data.success) {
+            setDynamicActivityMetadata({
+              types: data.types || [],
+              venues: data.venues || [],
+              intensities: data.intensities || []
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching activity metadata:', error);
+        }
+      };
+      fetchActivityMetadata();
+    }
+  }, [type]);
+  
+  // Fetch play metadata dynamically from API when type is 'plays'
+  useEffect(() => {
+    if (type === 'plays') {
+      const fetchPlayMetadata = async () => {
+        try {
+          const response = await fetch('/api/plays-metadata');
+          const data = await response.json();
+          if (data.success) {
+            setDynamicPlayMetadata({
+              types: data.types || [],
+              venues: data.venues || [],
+              intensities: data.intensities || []
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching play metadata:', error);
+        }
+      };
+      fetchPlayMetadata();
+    }
+  }, [type]);
+  
+  // Use dynamic cuisines if available, otherwise fall back to static options
+  if (type === 'dinings' && dynamicCuisines.length > 0) {
+    options.cuisines = dynamicCuisines;
+  }
+  
+  // Use dynamic movie metadata if available
+  if (type === 'movies') {
+    if (dynamicMovieMetadata.genres.length > 0) {
+      options.genre = dynamicMovieMetadata.genres;
+    }
+    if (dynamicMovieMetadata.formats.length > 0) {
+      options.format = dynamicMovieMetadata.formats;
+    }
+    if (dynamicMovieMetadata.cast.length > 0) {
+      options.cast = dynamicMovieMetadata.cast;
+    }
+  }
+  
+  // Use dynamic event metadata if available
+  if (type === 'events') {
+    if (dynamicEventMetadata.types.length > 0) {
+      options.type = dynamicEventMetadata.types;
+    }
+    if (dynamicEventMetadata.venues.length > 0) {
+      options.venue = dynamicEventMetadata.venues;
+    }
+  }
+  
+  // Use dynamic activity metadata if available
+  if (type === 'activities') {
+    if (dynamicActivityMetadata.types.length > 0) {
+      options.type = dynamicActivityMetadata.types;
+    }
+    if (dynamicActivityMetadata.venues.length > 0) {
+      options.venue = dynamicActivityMetadata.venues;
+    }
+    if (dynamicActivityMetadata.intensities.length > 0) {
+      options.intensity = dynamicActivityMetadata.intensities;
+    }
+  }
+  
+  // Use dynamic play metadata if available
+  if (type === 'plays') {
+    if (dynamicPlayMetadata.types.length > 0) {
+      options.type = dynamicPlayMetadata.types;
+    }
+    if (dynamicPlayMetadata.venues.length > 0) {
+      options.venue = dynamicPlayMetadata.venues;
+    }
+    if (dynamicPlayMetadata.intensities.length > 0) {
+      options.intensity = dynamicPlayMetadata.intensities;
+    }
+  }
 
   // Count active filters (non-empty arrays, defined booleans, and numbers)
   const getActiveFilterCount = () => {

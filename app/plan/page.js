@@ -3,15 +3,21 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Steps, FloatButton, Drawer } from 'antd';
+import { MessageOutlined } from '@ant-design/icons';
+import 'antd/dist/reset.css';
 import BasicInfoStep from '@/app/components/plan/BasicInfoStep';
 import GoOutTypesStep from '@/app/components/plan/GoOutTypesStep';
+import Chatbot from '@/app/components/plan/Chatbot';
 
 export default function PlanItinerary() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [formData, setFormData] = useState({
     // Mandatory fields
+    date: '',
     startTime: '',
     budget: '',
     numberOfPeople: '',
@@ -22,10 +28,21 @@ export default function PlanItinerary() {
     endLocation: { lat: '', lng: '' },
     extraInfo: '',
     travelTolerance: [],
+    transportMode: '',
     
     // Preferred types with filters
     preferredTypes: []
   });
+
+  // Check if mandatory fields are filled
+  const isStep1Valid = () => {
+    return formData.date &&
+           formData.startTime &&
+           formData.budget &&
+           formData.numberOfPeople &&
+           formData.startLocation.lat &&
+           formData.startLocation.lng;
+  };
 
   const handleStepComplete = (stepData) => {
     setFormData(prev => ({ ...prev, ...stepData }));
@@ -37,6 +54,7 @@ export default function PlanItinerary() {
     try {
       // Transform formData to API format
       const apiPayload = {
+        date: formData.date,
         startTime: parseInt(formData.startTime),
         budget: parseFloat(formData.budget),
         numberOfPeople: parseInt(formData.numberOfPeople),
@@ -59,6 +77,7 @@ export default function PlanItinerary() {
       if (formData.travelTolerance.length > 0) {
         apiPayload.travelTolerance = formData.travelTolerance;
       }
+      if (formData.transportMode) apiPayload.transportMode = formData.transportMode;
 
       // preferredTypes now contains the new structure with filters or specific venues
       // No need to merge - send as-is
@@ -154,20 +173,45 @@ export default function PlanItinerary() {
         </div>
 
         {/* Progress Indicator */}
-        <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center space-x-4">
-            <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-              step >= 1 ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-600'
-            }`}>
-              1
-            </div>
-            <div className={`w-24 h-1 ${step >= 2 ? 'bg-purple-600' : 'bg-gray-200'}`} />
-            <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-              step >= 2 ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-600'
-            }`}>
-              2
-            </div>
-          </div>
+        <div className="mb-8">
+          <Steps
+            type="panel"
+            current={step - 1}
+            onChange={(current) => {
+              // Allow going back to Step 1 or forward to Step 2 if validated
+              if (current === 0) {
+                setStep(1);
+              } else if (current === 1 && isStep1Valid()) {
+                setStep(2);
+              }
+            }}
+            items={[
+              {
+                title: 'Step 1',
+                subTitle: 'Basic Information',
+              },
+              {
+                title: 'Step 2',
+                subTitle: 'Go-Out Preferences',
+                disabled: !isStep1Valid(),
+              },
+            ]}
+            styles={{
+              root: {
+                '--ant-color-primary': '#9333ea',
+                '--ant-color-primary-hover': '#a855f7',
+                '--ant-color-primary-bg': 'rgba(147, 51, 234, 0.1)',
+              },
+              itemTitle: {
+                fontWeight: 'bold',
+                color: 'white',
+              },
+              itemSubtitle: {
+                fontWeight: 'bold',
+                color: 'white',
+              }
+            }}
+          />
         </div>
 
         {/* Form Steps */}
@@ -190,6 +234,94 @@ export default function PlanItinerary() {
           )}
         </div>
       </div>
+      
+      {/* Chatbot Float Button */}
+      <FloatButton
+        shape="square"
+        type="primary"
+        style={{
+          insetInlineEnd: 24,
+          width: 60,
+          height: 60,
+          backgroundColor: '#9333ea',
+        }}
+        icon={<MessageOutlined style={{ fontSize: 24 }} />}
+        onClick={() => setDrawerOpen(true)}
+      />
+      
+      {/* Chatbot Drawer */}
+      <Drawer
+        title="District Planning Assistant"
+        placement="right"
+        size="100%"
+        onClose={() => setDrawerOpen(false)}
+        open={drawerOpen}
+        styles={{
+          header: {
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            borderBottom: '2px solid rgba(147, 51, 234, 0.3)'
+          },
+          body: {
+            padding: 0,
+            background: '#000000'
+          }
+        }}
+      >
+        <Chatbot onComplete={async (payload) => {
+          // Keep drawer open and show loading state
+          setIsGenerating(true);
+          
+          try {
+            // Build API payload from chatbot data
+            const apiPayload = {
+              date: payload.date,
+              startTime: payload.startTime,
+              endTime: payload.endTime,
+              budget: payload.budget,
+              numberOfPeople: payload.numberOfPeople,
+              startLocation: payload.startLocation,
+              endLocation: payload.endLocation,
+              extraInfo: payload.extraInfo,
+              travelTolerance: payload.travelTolerance || [],
+              transportMode: payload.transportMode || 'driving-car',
+              preferredTypes: payload.preferredTypes || []
+            };
+
+            // Call the API to generate itinerary
+            const response = await fetch('/api/plan-itinerary', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(apiPayload)
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.itineraries) {
+              // Store in sessionStorage and navigate to results
+              sessionStorage.setItem('itineraryData', JSON.stringify({
+                itineraries: result.itineraries,
+                originalRequest: apiPayload
+              }));
+              
+              // Close drawer before navigation
+              setDrawerOpen(false);
+              setIsGenerating(false);
+              
+              // Navigate to results page
+              router.push('/results');
+            } else {
+              const errorMsg = result.details || result.error || 'Failed to generate itinerary';
+              alert(`❌ ${errorMsg}`);
+              setIsGenerating(false);
+            }
+          } catch (error) {
+            console.error('Error:', error);
+            alert(`Network error: ${error.message}`);
+            setIsGenerating(false);
+          }
+        }} />
+      </Drawer>
     </div>
   );
 }

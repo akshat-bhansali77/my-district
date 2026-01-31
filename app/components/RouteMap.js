@@ -36,7 +36,7 @@ const Polyline = dynamic(
   { ssr: false }
 );
 
-export default function RouteMap({ locations, apiKey, planNumber, totalPlans, score, goOutsCount, budget, totalDistance, totalTime, activityCount = 1, numPeople = 1 }) {
+export default function RouteMap({ locations, apiKey, planNumber, totalPlans, score, goOutsCount, budget, totalDistance, totalTime, activityCount = 1, numPeople = 1, hasEndLocation = false, transportMode = 'driving-car', startTime, endTime, totalTravelMinutes, date }) {
   const [isClient, setIsClient] = useState(false);
   const [L, setL] = useState(null);
   const [routeData, setRouteData] = useState(null);
@@ -72,7 +72,7 @@ export default function RouteMap({ locations, apiKey, planNumber, totalPlans, sc
       try {
         setLoading(true);
         console.log('Fetching route for locations:', locations);
-        const result = await getRouteGeometry(locations, apiKey);
+        const result = await getRouteGeometry(locations, apiKey, transportMode);
         
         console.log('Route result:', result);
         
@@ -91,7 +91,7 @@ export default function RouteMap({ locations, apiKey, planNumber, totalPlans, sc
     };
 
     fetchRoute();
-  }, [locations, apiKey]);
+  }, [locations, apiKey, transportMode]);
 
   if (!isClient || !L) {
     return (
@@ -176,7 +176,15 @@ export default function RouteMap({ locations, apiKey, planNumber, totalPlans, sc
         {/* Render all location markers */}
         {locations.map((loc, index) => {
           const isStart = index === 0;
-          const isEnd = index === locations.length - 1;
+          // Only mark as end if hasEndLocation is true AND this is the last location
+          const isEnd = hasEndLocation && index === locations.length - 1;
+          // Skip rendering marker if this is a "Return to Start" location (route completion)
+          const isReturnToStart = loc.name === "🏠 Return to Start";
+          
+          if (isReturnToStart) {
+            return null; // Don't render a marker, but location is used for route calculation
+          }
+          
           const icon = isStart ? startIcon : (isEnd ? endIcon : waypointIcon);
           const defaultLabel = isStart ? 'Start' : (isEnd ? 'End' : `Stop ${index}`);
           const label = loc.name || defaultLabel;
@@ -233,29 +241,23 @@ export default function RouteMap({ locations, apiKey, planNumber, totalPlans, sc
       
       {/* Plan Info Box - Bottom Left */}
       {planNumber !== undefined && (
-        <div className="absolute bottom-4 left-4 bg-gray-900 rounded-lg shadow-lg p-3 z-[1000] border-2 border-purple-500">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="absolute bottom-4 left-4 bg-gray-900 rounded-lg shadow-lg p-3 z-[1000] border-2 border-purple-500 min-h-[85px] min-w-[200px]">
+          <div className="flex items-center justify-between gap-4 mb-2">
             <div className="text-sm font-semibold text-white">
               Plan {planNumber} of {totalPlans}
             </div>
+            {budget !== undefined && (
+              <div className="flex items-center gap-1">
+                <span className="text-purple-400">₹</span>
+                <span className="font-semibold text-purple-400">{budget * numPeople}</span>
+              </div>
+            )}
           </div>
           <div className="space-y-1 text-xs text-gray-300">
             {goOutsCount !== undefined && (
               <div className="text-purple-400">{goOutsCount} go-outs planned</div>
             )}
             <div className="flex items-center gap-3">
-              {budget !== undefined && (
-                <div className="flex items-center gap-1">
-                  <span>₹</span>
-                  <span className="font-semibold">{budget * numPeople}</span>
-                </div>
-              )}
-              {totalDistance !== undefined && (
-                <div className="flex items-center gap-1">
-                  <span>📏</span>
-                  <span className="font-semibold">{totalDistance} km</span>
-                </div>
-              )}
               {totalTime && (
                 <div className="flex items-center gap-1">
                   <span>⏱️</span>
@@ -263,22 +265,58 @@ export default function RouteMap({ locations, apiKey, planNumber, totalPlans, sc
                 </div>
               )}
             </div>
+            {startTime !== undefined && (
+              <div className="flex items-center gap-1 mt-1">
+                <span className="text-purple-400">🕐</span>
+                <span className="font-semibold text-gray-200">
+                  {(() => {
+                    const formatTime = (time) => {
+                      const hours = Math.floor(time);
+                      const minutes = Math.round((time - hours) * 60);
+                      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                    };
+                    const start = formatTime(startTime);
+                    const end = endTime ? formatTime(endTime) : '';
+                    return end ? `${start} - ${end}` : start;
+                  })()}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* Distance and Time Summary Box - Bottom Right */}
-      <div className="absolute bottom-4 right-4 bg-gray-900 rounded-lg shadow-lg p-3 z-[1000] border-2 border-purple-500">
-        <div className="text-sm font-semibold text-white mb-1">Route Summary</div>
-        <div className="flex items-center gap-2 text-xs">
-          <div className="flex items-center gap-1">
-            <span className="text-purple-400">📏</span>
-            <span className="font-semibold text-gray-200">{distanceKm} km</span>
-          </div>
-          <span className="text-gray-400">•</span>
-          <div className="flex items-center gap-1">
-            <span className="text-purple-400">⏱️</span>
-            <span className="font-semibold text-gray-200">{durationMin} min</span>
+      <div className="absolute bottom-4 right-4 bg-gray-900 rounded-lg shadow-lg p-3 z-[1000] border-2 border-purple-500 min-h-[100px]">
+        <div className="text-sm font-semibold text-white mb-2">Travel Summary</div>
+        <div className="space-y-1">
+          {date && (
+            <div className="flex items-center gap-1 text-xs mb-1">
+              <span className="text-purple-400">📅</span>
+              <span className="font-semibold text-purple-400">
+                {new Date(date).toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-1">
+              <span className="text-purple-400">📏</span>
+              <span className="font-semibold text-gray-200">{distanceKm} km</span>
+            </div>
+            {totalTravelMinutes !== undefined && (
+              <>
+                <span className="text-gray-400">•</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-purple-400">⏱️</span>
+                  <span className="font-semibold text-gray-200">{Math.round(totalTravelMinutes)} min</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

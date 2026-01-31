@@ -15,9 +15,10 @@ import Play from "@/app/models/Play";
  * @param {Object} startLocation - Starting location { lat, lng }
  * @param {number} startTime - Start time in hours
  * @param {string} apiKey - OpenRouteService API key
+ * @param {string} transportMode - Transport mode: 'driving-car', 'cycling-electric', 'foot-walking'
  * @returns {Promise<Array>>} Valid enriched itineraries
  */
-async function enrichItinerariesWithTravel(itineraries, startLocation, startTime, apiKey) {
+async function enrichItinerariesWithTravel(itineraries, startLocation, startTime, apiKey, transportMode = 'driving-car') {
   if (!itineraries.length) return [];
 
   // Collect unique locations
@@ -38,7 +39,7 @@ async function enrichItinerariesWithTravel(itineraries, startLocation, startTime
   const allLocations = Array.from(locationMap.values());
   
   // Single Matrix API call
-  const matrixResult = await getDistanceMatrix(allLocations, apiKey);
+  const matrixResult = await getDistanceMatrix(allLocations, apiKey, null, null, transportMode);
   if (!matrixResult.success) return [];
 
   // Build location index
@@ -161,6 +162,7 @@ export async function POST(request) {
     const body = await request.json();
     const {
       // Mandatory fields
+      date,                   // String: YYYY-MM-DD format
       startTime,              // Number: 24-hour format (e.g., 18)
       preferredTypes,         // Array: [{ "dinings": {} }, { "movies": obj }]
       budget,                 // Number: total budget
@@ -172,6 +174,7 @@ export async function POST(request) {
       endLocation,            // Object: { lat, lng }
       extraInfo,              // String
       travelTolerance,        // [String]: Array of "low", "medium", "high"
+      transportMode,          // String: 'driving-car', 'cycling-electric', 'foot-walking'
       
       // Go-out specific filters
       dining,                 // Object: { type: [String], cuisines: [String], alcohol: Boolean, wifi: Boolean, washroom: Boolean, wheelchair: Boolean, parking: Boolean, rating: Number, crowdTolerance: [String] }
@@ -182,31 +185,29 @@ export async function POST(request) {
     } = body;
 
     // Validate only mandatory fields
-    if (!startTime || !preferredTypes || !budget || !numberOfPeople || !startLocation) {
+    if (!date || !startTime || !preferredTypes || !budget || !numberOfPeople || !startLocation) {
       return NextResponse.json(
-        { error: "Missing required fields: startTime, preferredTypes, budget, numberOfPeople, startLocation" },
+        { error: "Missing required fields: date, startTime, preferredTypes, budget, numberOfPeople, startLocation" },
         { status: 400 }
       );
     }
 
     console.log('📥 Received preferredTypes:', JSON.stringify(preferredTypes, null, 2));
     
-    // Extract hours in 24-hour format (0-23)
-    const startHour = startTime - 1; // startTime - 1 hour
     const maxPrice = (budget * 1.25) / numberOfPeople;
 
     // Base query for all types
+    // Add modest buffer (2.5 hours) to account for later venues in itinerary
     const baseQuery = {
       minPeople: { $lte: numberOfPeople },
       maxPeople: { $gte: numberOfPeople },
       pricePerPerson: { $lte: maxPrice },
-      availableTimeStart: { $lte: startHour }
+      availableTimeStart: { $lte: startTime + 2.5 } // Allow venues opening within ~2.5 hours
     };
 
     // Only add endTime filter if provided
     if (endTime) {
-      const endHour = endTime + 1; // endTime + 1 hour
-      baseQuery.availableTimeEnd = { $gte: endHour };
+      baseQuery.availableTimeEnd = { $gte: endTime }; // Venue must still be open at end time
     }
     
     const modelMap = {
@@ -364,7 +365,8 @@ export async function POST(request) {
     const itineraries = generateItineraries(results, budget, numberOfPeople);
 
     // Enrich itineraries with travel distance and time (validates time constraints)
-    const validItineraries = await enrichItinerariesWithTravel(itineraries, startLocation, startTime, process.env.OPENROUTE_API_KEY);
+    const api_key = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZjMDM0Yjc3M2QxZDQ1MzVhMzUzMjhmMzcwYWUyZmEzIiwiaCI6Im11cm11cjY0In0=";
+    const validItineraries = await enrichItinerariesWithTravel(itineraries, startLocation, startTime, api_key, transportMode || 'driving-car');
 
     // Check if no valid itineraries after time validation
     if (validItineraries.length === 0) {
@@ -375,8 +377,16 @@ export async function POST(request) {
       }, { status: 200 });
     }
 
+    // Randomize the valid itineraries array using Fisher-Yates shuffle
+    // This ensures AI scores a diverse random sample rather than just the first N permutations
+    const shuffledItineraries = [...validItineraries];
+    for (let i = shuffledItineraries.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledItineraries[i], shuffledItineraries[j]] = [shuffledItineraries[j], shuffledItineraries[i]];
+    }
+
     // Score itineraries using AI (batchSize=1 processes one at a time)
-    const scoredItineraries = await scoreItineraries(validItineraries, body, 1);
+    const scoredItineraries = await scoreItineraries(shuffledItineraries, body, 1);
     
     // Remove duplicate itineraries - ensure no venue appears in multiple selected itineraries
     const uniqueItineraries = [];
