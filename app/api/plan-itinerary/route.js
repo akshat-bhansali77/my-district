@@ -378,30 +378,48 @@ export async function POST(request) {
     // Score itineraries using AI (batchSize=1 processes one at a time)
     const scoredItineraries = await scoreItineraries(validItineraries, body, 1);
     
-    // Remove duplicate itineraries (same venues in same order)
+    // Remove duplicate itineraries - ensure no venue appears in multiple selected itineraries
     const uniqueItineraries = [];
-    const seenCombinations = new Set();
+    const usedVenues = new Set();
     
     for (const itinerary of scoredItineraries) {
-      // Create a unique key based on venue IDs/names in order
-      const key = itinerary.itinerary.map(item => {
+      // Get all venue IDs/names in this itinerary
+      const venueIds = itinerary.itinerary.map(item => {
         const typeName = Object.keys(item)[0];
         const venue = item[typeName];
-        return venue._id || venue.name || JSON.stringify(venue);
-      }).join('|');
+        // Create a unique identifier for the venue
+        if (venue._id) {
+          return String(venue._id);
+        } else if (venue.name) {
+          return venue.name.toLowerCase().trim();
+        } else {
+          return JSON.stringify(venue);
+        }
+      });
       
-      if (!seenCombinations.has(key)) {
-        seenCombinations.add(key);
+      // Check if any venue in this itinerary has been used before
+      const hasUsedVenue = venueIds.some(venueId => usedVenues.has(venueId));
+      
+      // Only add this itinerary if all its venues are new
+      if (!hasUsedVenue) {
         uniqueItineraries.push(itinerary);
+        // Mark all venues in this itinerary as used
+        venueIds.forEach(venueId => usedVenues.add(venueId));
+      }
+      
+      // Stop once we have 4 unique itineraries
+      if (uniqueItineraries.length >= 4) {
+        break;
       }
     }
     
-    // Get top 4 unique itineraries (already sorted highest to lowest by scoreItineraries)
-    const top4 = uniqueItineraries.slice(0, 4);
+    console.log(`Total scored itineraries: ${scoredItineraries.length}`);
+    console.log(`Unique itineraries (no shared venues): ${uniqueItineraries.length}`);
+    console.log(`Total unique venues used: ${usedVenues.size}`);
 
     return NextResponse.json({
       success: true,
-      itineraries: top4,
+      itineraries: uniqueItineraries,
       totalCombinations: uniqueItineraries.length
     }, { status: 200 });
 
