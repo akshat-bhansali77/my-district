@@ -3,15 +3,18 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Steps } from 'antd';
+import { Steps, FloatButton, Drawer } from 'antd';
+import { MessageOutlined } from '@ant-design/icons';
 import 'antd/dist/reset.css';
 import BasicInfoStep from '@/app/components/plan/BasicInfoStep';
 import GoOutTypesStep from '@/app/components/plan/GoOutTypesStep';
+import Chatbot from '@/app/components/plan/Chatbot';
 
 export default function PlanItinerary() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [formData, setFormData] = useState({
     // Mandatory fields
     date: '',
@@ -231,6 +234,94 @@ export default function PlanItinerary() {
           )}
         </div>
       </div>
+      
+      {/* Chatbot Float Button */}
+      <FloatButton
+        shape="square"
+        type="primary"
+        style={{
+          insetInlineEnd: 24,
+          width: 60,
+          height: 60,
+          backgroundColor: '#9333ea',
+        }}
+        icon={<MessageOutlined style={{ fontSize: 24 }} />}
+        onClick={() => setDrawerOpen(true)}
+      />
+      
+      {/* Chatbot Drawer */}
+      <Drawer
+        title="District Planning Assistant"
+        placement="right"
+        size="100%"
+        onClose={() => setDrawerOpen(false)}
+        open={drawerOpen}
+        styles={{
+          header: {
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            borderBottom: '2px solid rgba(147, 51, 234, 0.3)'
+          },
+          body: {
+            padding: 0,
+            background: '#000000'
+          }
+        }}
+      >
+        <Chatbot onComplete={async (payload) => {
+          // Keep drawer open and show loading state
+          setIsGenerating(true);
+          
+          try {
+            // Build API payload from chatbot data
+            const apiPayload = {
+              date: payload.date,
+              startTime: payload.startTime,
+              endTime: payload.endTime,
+              budget: payload.budget,
+              numberOfPeople: payload.numberOfPeople,
+              startLocation: payload.startLocation,
+              endLocation: payload.endLocation,
+              extraInfo: payload.extraInfo,
+              travelTolerance: payload.travelTolerance || [],
+              transportMode: payload.transportMode || 'driving-car',
+              preferredTypes: payload.preferredTypes || []
+            };
+
+            // Call the API to generate itinerary
+            const response = await fetch('/api/plan-itinerary', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(apiPayload)
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.itineraries) {
+              // Store in sessionStorage and navigate to results
+              sessionStorage.setItem('itineraryData', JSON.stringify({
+                itineraries: result.itineraries,
+                originalRequest: apiPayload
+              }));
+              
+              // Close drawer before navigation
+              setDrawerOpen(false);
+              setIsGenerating(false);
+              
+              // Navigate to results page
+              router.push('/results');
+            } else {
+              const errorMsg = result.details || result.error || 'Failed to generate itinerary';
+              alert(`❌ ${errorMsg}`);
+              setIsGenerating(false);
+            }
+          } catch (error) {
+            console.error('Error:', error);
+            alert(`Network error: ${error.message}`);
+            setIsGenerating(false);
+          }
+        }} />
+      </Drawer>
     </div>
   );
 }
