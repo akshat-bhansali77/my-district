@@ -3,7 +3,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MapPin, Clock, IndianRupee, Star, Navigation, Plus, Trash2, RefreshCw, Edit2, X, ArrowRight, Car, Home } from 'lucide-react';
+import { MapPin, Clock, IndianRupee, Star, Navigation, Plus, Trash2, RefreshCw, Edit2, X, ArrowRight, Car, Home, ShoppingCart } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import GoOutFilters from '../plan/GoOutFilters';
 import RouteMap from '../RouteMap';
 
@@ -15,19 +16,21 @@ const GO_OUT_TYPES = [
   { id: 'plays', name: 'Play', icon: '⚽' }
 ];
 
-export default function EditableItinerary({ 
-  itinerary, 
-  index, 
+export default function EditableItinerary({
+  itinerary,
+  index,
   totalItineraries,
   originalData,
-  onRegenerate 
+  onRegenerate
 }) {
+  const router = useRouter();
   const [editingIndex, setEditingIndex] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
   const [selectedType, setSelectedType] = useState(null);
   const [filters, setFilters] = useState({ filters: {} });
   const [modifiedItinerary, setModifiedItinerary] = useState(itinerary.itinerary || []);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   // Sync local state with prop changes after regeneration
   useEffect(() => {
@@ -152,6 +155,64 @@ export default function EditableItinerary({
     }
     
     setIsRegenerating(false);
+  };
+
+  const handleCheckout = async () => {
+    if (modifiedItinerary.length === 0) {
+      alert('Cannot checkout with empty itinerary');
+      return;
+    }
+
+    // Check if all activities are specific venues (have been fully generated)
+    const hasIncompleteActivities = modifiedItinerary.some(item => {
+      const typeName = Object.keys(item)[0];
+      const value = item[typeName];
+      return !value.name; // If no name, it's just filters, not a specific venue
+    });
+
+    if (hasIncompleteActivities) {
+      alert('Please regenerate to get specific venues before checking out');
+      return;
+    }
+
+    setIsCheckingOut(true);
+
+    try {
+      const orderPayload = {
+        numberOfPeople: originalData.numberOfPeople,
+        startTime: originalData.startTime,
+        startLocation: originalData.startLocation,
+        endTime: originalData.endTime,
+        endLocation: originalData.endLocation,
+        itinerary: modifiedItinerary,
+        totalBudget: totalBudget,
+        totalDistance: totalDistance,
+        totalDuration: totalHours,
+        extraInfo: originalData.extraInfo,
+        travelTolerance: originalData.travelTolerance,
+        score: itinerary.score
+      };
+
+      const response = await fetch('/api/order-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('✅ Order placed successfully!');
+        router.push('/order-history');
+      } else {
+        alert(`❌ Failed to place order: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error during checkout:', error);
+      alert('❌ Network error during checkout');
+    } finally {
+      setIsCheckingOut(false);
+    }
   };
 
   // Calculate totals
@@ -644,31 +705,53 @@ export default function EditableItinerary({
         })()}
       </div>
 
-      {/* Bottom Section: Add & Regenerate Buttons - Centered */}
-      <div className="flex justify-center gap-4 mt-6 pt-6 border-t border-gray-700">
+      {/* Bottom Section: Action Buttons - Left (Add & Regenerate) and Right (Checkout) */}
+      <div className="flex justify-between items-center mt-6 pt-6 border-t border-gray-800">
+        {/* Left Side: Add Activity & Regenerate Itinerary */}
+        <div className="flex gap-3">
+          <button
+            onClick={handleAdd}
+            disabled={isAdding || editingIndex !== null}
+            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:shadow-green-500/30 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+          >
+            <Plus className="w-5 h-5" />
+            Add Activity
+          </button>
+          
+          <button
+            onClick={handleRegenerate}
+            disabled={isRegenerating || isAdding || editingIndex !== null}
+            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:shadow-purple-500/30 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+          >
+            {isRegenerating ? (
+              <>
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                Regenerating...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-5 h-5" />
+                Regenerate Itinerary
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Right Side: Checkout Button */}
         <button
-          onClick={handleAdd}
-          disabled={isAdding || editingIndex !== null}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={handleCheckout}
+          disabled={isCheckingOut || isAdding || editingIndex !== null || isRegenerating}
+          className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:shadow-orange-500/40 transform hover:scale-[1.02] border-2 border-orange-400/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
         >
-          <Plus className="w-5 h-5" />
-          Add Activity
-        </button>
-        
-        <button
-          onClick={handleRegenerate}
-          disabled={isRegenerating || isAdding || editingIndex !== null}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isRegenerating ? (
+          {isCheckingOut ? (
             <>
               <RefreshCw className="w-5 h-5 animate-spin" />
-              Regenerating...
+              Processing...
             </>
           ) : (
             <>
-              <RefreshCw className="w-5 h-5" />
-              Regenerate Itinerary
+              <ShoppingCart className="w-5 h-5" />
+              Checkout
             </>
           )}
         </button>
