@@ -11,7 +11,7 @@ export default function MapDemo() {
   ];
   
   // Hardcoded API key for testing
-  const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZjMDM0Yjc3M2QxZDQ1MzVhMzUzMjhmMzcwYWUyZmEzIiwiaCI6Im11cm11cjY0In0=";
+  const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImI2YWIzZWU5MzE1MjRiZmViNDk5MDdlYjY3NThjMGIxIiwiaCI6Im11cm11cjY0In0=";
   
   console.log('MapDemo - API Key:', apiKey ? 'Present' : 'Missing');
   console.log('MapDemo - Locations:', locations);

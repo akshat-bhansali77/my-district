@@ -21,7 +21,7 @@ export async function GET(request) {
     url.searchParams.append('text', text);
     url.searchParams.append('size', '5'); // Limit to 5 suggestions
     url.searchParams.append('boundary.country', 'IN'); // Focus on India
-    const api_key = process.env.OPENROUTE_API_KEY;
+    const api_key = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImI2YWIzZWU5MzE1MjRiZmViNDk5MDdlYjY3NThjMGIxIiwiaCI6Im11cm11cjY0In0=";
     const response = await fetch(url.toString(), {
       headers: {
         'Accept': 'application/json, application/geo+json',

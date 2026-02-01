@@ -10,7 +10,7 @@ async function geocodeLocation(locationName) {
   try {
     // Try geocoding with the original location name
     let response = await fetch(
-      `https://api.openrouteservice.org/geocode/search?api_key=eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZjMDM0Yjc3M2QxZDQ1MzVhMzUzMjhmMzcwYWUyZmEzIiwiaCI6Im11cm11cjY0In0=&text=${encodeURIComponent(locationName)}`
+      `https://api.openrouteservice.org/geocode/search?api_key=eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImI2YWIzZWU5MzE1MjRiZmViNDk5MDdlYjY3NThjMGIxIiwiaCI6Im11cm11cjY0In0=&text=${encodeURIComponent(locationName)}`
     );
     let data = await response.json();
     
@@ -18,7 +18,7 @@ async function geocodeLocation(locationName) {
     if ((!data.features || data.features.length === 0) && locationName.toLowerCase().includes('sector')) {
       console.log('Trying with "Gurgaon, India" suffix...');
       response = await fetch(
-        `https://api.openrouteservice.org/geocode/search?api_key=eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZjMDM0Yjc3M2QxZDQ1MzVhMzUzMjhmMzcwYWUyZmEzIiwiaCI6Im11cm11cjY0In0=&text=${encodeURIComponent(locationName + ', Gurgaon, India')}`
+        `https://api.openrouteservice.org/geocode/search?api_key=eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImI2YWIzZWU5MzE1MjRiZmViNDk5MDdlYjY3NThjMGIxIiwiaCI6Im11cm11cjY0In0=&text=${encodeURIComponent(locationName + ', Gurgaon, India')}`
       );
       data = await response.json();
     }

@@ -71,7 +71,7 @@ export default function EditableItinerary({
         return;
       }
 
-      const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZjMDM0Yjc3M2QxZDQ1MzVhMzUzMjhmMzcwYWUyZmEzIiwiaCI6Im11cm11cjY0In0=";
+      const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImI2YWIzZWU5MzE1MjRiZmViNDk5MDdlYjY3NThjMGIxIiwiaCI6Im11cm11cjY0In0=";
       const lastActivity = modifiedItinerary[modifiedItinerary.length - 1];
       const lastTypeName = Object.keys(lastActivity)[0];
       const lastLocation = lastActivity[lastTypeName].location;
@@ -137,7 +137,7 @@ export default function EditableItinerary({
   };
 
   const handleModeChange = async (activityIndex, newMode) => {
-    const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZjMDM0Yjc3M2QxZDQ1MzVhMzUzMjhmMzcwYWUyZmEzIiwiaCI6Im11cm11cjY0In0=";
+    const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImI2YWIzZWU5MzE1MjRiZmViNDk5MDdlYjY3NThjMGIxIiwiaCI6Im11cm11cjY0In0=";
     
     // Get previous location (start location or previous activity)
     let prevLocation;
@@ -188,7 +188,7 @@ export default function EditableItinerary({
       return;
     }
 
-    const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZjMDM0Yjc3M2QxZDQ1MzVhMzUzMjhmMzcwYWUyZmEzIiwiaCI6Im11cm11cjY0In0=";
+    const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImI2YWIzZWU5MzE1MjRiZmViNDk5MDdlYjY3NThjMGIxIiwiaCI6Im11cm11cjY0In0=";
     const lastActivity = modifiedItinerary[modifiedItinerary.length - 1];
     const lastTypeName = Object.keys(lastActivity)[0];
     const lastLocation = lastActivity[lastTypeName].location;
@@ -948,7 +948,7 @@ export default function EditableItinerary({
             return null;
           }
 
-          const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZjMDM0Yjc3M2QxZDQ1MzVhMzUzMjhmMzcwYWUyZmEzIiwiaCI6Im11cm11cjY0In0=";
+          const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImI2YWIzZWU5MzE1MjRiZmViNDk5MDdlYjY3NThjMGIxIiwiaCI6Im11cm11cjY0In0=";
           
           // Check if end location exists and is different from start
           const hasEndLocation = !!originalData?.endLocation && !isSameStartEnd;

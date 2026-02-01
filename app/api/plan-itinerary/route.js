@@ -365,7 +365,7 @@ export async function POST(request) {
     const itineraries = generateItineraries(results, budget, numberOfPeople);
 
     // Enrich itineraries with travel distance and time (validates time constraints)
-    const api_key = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZjMDM0Yjc3M2QxZDQ1MzVhMzUzMjhmMzcwYWUyZmEzIiwiaCI6Im11cm11cjY0In0=";
+    const api_key = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImI2YWIzZWU5MzE1MjRiZmViNDk5MDdlYjY3NThjMGIxIiwiaCI6Im11cm11cjY0In0=";
     const validItineraries = await enrichItinerariesWithTravel(itineraries, startLocation, startTime, api_key, transportMode || 'driving-car');
 
     // Check if no valid itineraries after time validation
